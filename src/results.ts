@@ -54,6 +54,13 @@ export function paymentView(intent: PaymentIntent, checkoutUrl: string) {
   };
 }
 
+const COINS: Record<PaymentIntent['chain'], string> = { stellar: 'XLM', solana: 'SOL', monad: 'MON' };
+
+/** The asset as a person reads it: the API names a chain's own coin `native`. */
+export function assetName(intent: Pick<PaymentIntent, 'asset' | 'chain'>): string {
+  return intent.asset === 'native' ? (COINS[intent.chain] ?? intent.asset) : intent.asset;
+}
+
 export function networkLabel(network: Network): string {
   return network === 'testnet' ? 'test networks (dv_ key: no real funds)' : 'mainnet (prod_ key: real funds)';
 }
