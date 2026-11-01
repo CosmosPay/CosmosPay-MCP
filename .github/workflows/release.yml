@@ -1,0 +1,101 @@
+name: Release
+
+# Every push to `main` is evaluated: scripts/release-version.mjs reads the Conventional Commits
+# since the last release and resolves the next version (feat: minor, fix: patch, `!` or
+# BREAKING CHANGE: major). With nothing release-worthy (only chore, docs or ci) the job skips.
+# Otherwise it tests, builds, publishes to npm with provenance, commits the bump and changelog,
+# tags and creates a GitHub Release. Needs the NPM_TOKEN secret (environment `release`).
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  publish:
+    name: Publish to npm
+    # A manual run from another branch must never publish or push to main.
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: release
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22.x
+          registry-url: https://registry.npmjs.org
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Resolve next version
+        id: ver
+        run: node scripts/release-version.mjs
+
+      - name: No release needed
+        if: steps.ver.outputs.release != 'true'
+        run: echo "No release-worthy commits since v${{ steps.ver.outputs.previous }}; skipping." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Typecheck, test and build
+        if: steps.ver.outputs.release == 'true'
+        run: |
+          npm run typecheck
+          npm test
+          npm run build
+
+      - name: Security audit (runtime dependencies)
+        if: steps.ver.outputs.release == 'true'
+        run: npm audit --omit=dev --audit-level=low
+
+      - name: Generate changelog and release notes
+        if: steps.ver.outputs.release == 'true'
+        run: |
+          V="v${{ steps.ver.outputs.version }}"
+          npx --yes git-cliff@2.14.2 --tag "$V" --output CHANGELOG.md
+          npx --yes git-cliff@2.14.2 --tag "$V" --unreleased --strip all --output RELEASE_NOTES.md
+
+      - name: Commit version bump and changelog
+        if: steps.ver.outputs.release == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json CHANGELOG.md
+          if ! git diff --staged --quiet; then
+            git commit -m "chore(release): v${{ steps.ver.outputs.version }} [skip ci]"
+            git push origin HEAD:main
+          fi
+
+      - name: Publish to npm
+        if: steps.ver.outputs.release == 'true'
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Tag and release
+        if: steps.ver.outputs.release == 'true'
+        run: |
+          git tag "v${{ steps.ver.outputs.version }}"
+          git push origin "v${{ steps.ver.outputs.version }}"
+
+      - name: Create GitHub Release
+        if: steps.ver.outputs.release == 'true'
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: v${{ steps.ver.outputs.version }}
+          name: v${{ steps.ver.outputs.version }}
+          body_path: RELEASE_NOTES.md

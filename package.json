@@ -1,0 +1,59 @@
+{
+  "name": "@cosmosapp/pay_mcp",
+  "version": "0.1.0",
+  "description": "MCP server for the Cosmos Pay Payments API: AI agents create stablecoin payment links and check payments on Stellar, Solana and Monad with your API key.",
+  "license": "Apache-2.0",
+  "author": "Cosmos Pay <organization@cosmospay.lat>",
+  "homepage": "https://dev.cosmospay.lat/docs/ai/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/CosmosPay/CosmosPay-MCP.git"
+  },
+  "bugs": {
+    "url": "https://github.com/CosmosPay/CosmosPay-MCP/issues"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "mcp-server",
+    "ai-agents",
+    "payments",
+    "stablecoins",
+    "usdc",
+    "payment-links",
+    "stellar",
+    "solana",
+    "monad",
+    "cosmos-pay"
+  ],
+  "mcpName": "io.github.CosmosPay/pay-mcp",
+  "type": "module",
+  "bin": {
+    "cosmos-pay-mcp": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "inspect": "npx -y @modelcontextprotocol/inspector node dist/index.js",
+    "prepublishOnly": "npm run typecheck && npm test && npm run build"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsup": "^9.0.0",
+    "typescript": "^5.9.0",
+    "vitest": "^5.0.5"
+  }
+}
