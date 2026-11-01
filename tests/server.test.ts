@@ -96,11 +96,18 @@ describe('reading payments', () => {
     expect(result.structuredContent).toMatchObject({ total: 41, skip: 20, payments: [{ id: 'pi_123', checkoutUrl: 'https://pay.example.test/pi_123' }] });
   });
 
-  it('get_payment escapes the id in the path', async () => {
-    const { fn, calls } = fakeFetch([[200, INTENT]]);
+  it('refuses an id that could leave the payment route, before any request', async () => {
+    const { fn, calls } = fakeFetch([]);
     const client = await connect(config(), fn);
-    await client.callTool({ name: 'get_payment', arguments: { id: '../summary' } });
-    expect(calls[0]?.url).toBe('https://api.example.test/cosmos-api/v1/payment-intents/..%2Fsummary');
+    for (const bad of ['..', '../summary', 'pi_1/transitions', 'pi 1', '%2e%2e', '']) {
+      for (const name of ['get_payment', 'get_payment_history', 'delete_payment']) {
+        const result = await client.callTool({ name, arguments: { id: bad } });
+        expect(result.isError, `${name} ${bad}`).toBe(true);
+      }
+      const result = await client.callTool({ name: 'validate_payment', arguments: { id: bad, tx_hash: 'abc' } });
+      expect(result.isError, `validate_payment ${bad}`).toBe(true);
+    }
+    expect(calls).toHaveLength(0);
   });
 
   it('validate_payment and delete_payment call their routes', async () => {

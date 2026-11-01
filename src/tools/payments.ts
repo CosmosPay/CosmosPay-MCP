@@ -11,7 +11,13 @@ const CHAINS = ['stellar', 'solana', 'monad'] as const;
 const STATUSES = ['PENDING', 'SUBMITTED', 'SUCCEEDED', 'FAILED', 'CANCELLED', 'EXPIRED'] as const;
 const THEMES = ['classic', 'split', 'ticket', 'card'] as const;
 
-const id = z.string().trim().min(1).max(64).describe('The payment id, as create_payment_link or list_payments returned it.');
+/* Payment ids are letters, digits, `_` and `-` (cuid or uuid). Anything else is refused before a
+   request: `..` survives encodeURIComponent and `new URL` would resolve it to another route. */
+const id = z
+  .string()
+  .trim()
+  .regex(/^[A-Za-z0-9_-]{1,64}$/, 'a payment id: letters, digits, "_" and "-"')
+  .describe('The payment id, as create_payment_link or list_payments returned it.');
 
 interface Page {
   data: PaymentIntent[];

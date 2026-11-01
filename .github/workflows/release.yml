@@ -21,6 +21,8 @@ permissions:
 jobs:
   publish:
     name: Publish to npm
+    # A manual run from another branch must never publish or push to main.
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: release
     steps:
@@ -64,8 +66,8 @@ jobs:
         if: steps.ver.outputs.release == 'true'
         run: |
           V="v${{ steps.ver.outputs.version }}"
-          npx --yes git-cliff@2 --tag "$V" --output CHANGELOG.md
-          npx --yes git-cliff@2 --tag "$V" --unreleased --strip all --output RELEASE_NOTES.md
+          npx --yes git-cliff@2.14.2 --tag "$V" --output CHANGELOG.md
+          npx --yes git-cliff@2.14.2 --tag "$V" --unreleased --strip all --output RELEASE_NOTES.md
 
       - name: Commit version bump and changelog
         if: steps.ver.outputs.release == 'true'
