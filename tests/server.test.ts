@@ -112,17 +112,47 @@ describe('reading payments', () => {
 
   it('validate_payment and delete_payment call their routes', async () => {
     const { fn, calls } = fakeFetch([
-      [200, { valid: true }],
-      [200, { deleted: true }],
+      [200, { valid: true, status: 'SUCCEEDED', paymentIntent: { ...INTENT, status: 'SUCCEEDED', txHash: 'abc' } }],
+      [200, { id: 'pi_123', deleted: true }],
     ]);
     const client = await connect(config(), fn);
-    await client.callTool({ name: 'validate_payment', arguments: { id: 'pi_123', tx_hash: 'abc' } });
+    const validated = await client.callTool({ name: 'validate_payment', arguments: { id: 'pi_123', tx_hash: 'abc' } });
     await client.callTool({ name: 'delete_payment', arguments: { id: 'pi_123' } });
     expect(calls.map((c) => `${c.method} ${c.url.replace('https://api.example.test/cosmos-api', '')}`)).toEqual([
       'POST /v1/payment-intents/pi_123/validate',
       'DELETE /v1/payment-intents/pi_123',
     ]);
     expect(calls[0]?.body).toEqual({ txHash: 'abc' });
+    expect((validated.content as Text[])[0]?.text).toMatch(/^The transaction pays payment pi_123: its status is SUCCEEDED\./);
+    expect(validated.structuredContent).toMatchObject({ valid: true, status: 'SUCCEEDED', payment: { txHash: 'abc' } });
+  });
+
+  it('validate_payment says so when the transaction does not pay the payment', async () => {
+    const { fn } = fakeFetch([[200, { valid: false, status: 'PENDING', reason: 'amount does not match' }]]);
+    const client = await connect(config(), fn);
+    const result = await client.callTool({ name: 'validate_payment', arguments: { id: 'pi_123', tx_hash: 'abc' } });
+    expect(result.isError).toBeFalsy();
+    expect((result.content as Text[])[0]?.text).toMatch(/^The transaction does not pay payment pi_123 \(amount does not match\)\. Its status stays PENDING\./);
+    expect(result.structuredContent).toMatchObject({ valid: false, reason: 'amount does not match', payment: null });
+  });
+
+  it('validate_payment does not claim a different transaction paid an already paid payment', async () => {
+    const { fn } = fakeFetch([[200, { valid: true, status: 'SUCCEEDED', paymentIntent: { ...INTENT, status: 'SUCCEEDED', txHash: 'ABC123' } }]]);
+    const client = await connect(config(), fn);
+    const other = await client.callTool({ name: 'validate_payment', arguments: { id: 'pi_123', tx_hash: 'f00' } });
+    expect((other.content as Text[])[0]?.text).toMatch(/^Payment pi_123 was already paid by transaction ABC123; the API does not check another transaction/);
+  });
+
+  it('names a chain’s own coin instead of the API’s "native"', async () => {
+    const { fn } = fakeFetch([
+      [201, { ...INTENT, asset: 'native', assetIssuer: null, amount: '1' }],
+      [200, { ...INTENT, chain: 'solana', asset: 'native', amount: null }],
+    ]);
+    const client = await connect(config(), fn);
+    const created = await client.callTool({ name: 'create_payment_link', arguments: { destination: 'G', amount: '1' } });
+    const read = await client.callTool({ name: 'get_payment', arguments: { id: 'pi_123' } });
+    expect((created.content as Text[])[0]?.text).toMatch(/^Created payment pi_123 for 1 XLM on stellar/);
+    expect((read.content as Text[])[0]?.text).toMatch(/^Payment pi_123 \(open amount of SOL\) is PENDING on solana/);
   });
 
   it('list_stellar_assets defaults to the key’s network', async () => {

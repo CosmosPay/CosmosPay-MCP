@@ -5,7 +5,7 @@ import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { CosmosPayApi } from '@/api';
 import type { Config } from '@/config';
-import { failure, networkLabel, ok, paymentView, qrImage, type PaymentIntent } from '@/results';
+import { assetName, failure, networkLabel, ok, paymentView, qrImage, type PaymentIntent } from '@/results';
 
 const CHAINS = ['stellar', 'solana', 'monad'] as const;
 const STATUSES = ['PENDING', 'SUBMITTED', 'SUCCEEDED', 'FAILED', 'CANCELLED', 'EXPIRED'] as const;
@@ -18,6 +18,14 @@ const id = z
   .trim()
   .regex(/^[A-Za-z0-9_-]{1,64}$/, 'a payment id: letters, digits, "_" and "-"')
   .describe('The payment id, as create_payment_link or list_payments returned it.');
+
+/* POST /v1/payment-intents/{id}/validate: `valid` false leaves the status as it was, with a reason. */
+interface ValidateResult {
+  valid: boolean;
+  status: PaymentIntent['status'];
+  reason?: string;
+  paymentIntent?: PaymentIntent;
+}
 
 interface Page {
   data: PaymentIntent[];
@@ -42,7 +50,8 @@ export function registerPaymentTools(server: McpServer, api: CosmosPayApi, confi
     async ({ id: paymentId }) => {
       try {
         const intent = await api.request<PaymentIntent>('GET', path(paymentId));
-        return ok(`Payment ${intent.id} is ${intent.status} on ${intent.chain} (${intent.network}).`, view(intent));
+        const amount = intent.amount ? `${intent.amount} ${assetName(intent)}` : `open amount of ${assetName(intent)}`;
+        return ok(`Payment ${intent.id} (${amount}) is ${intent.status} on ${intent.chain} (${intent.network}).`, view(intent));
       } catch (error) {
         return failure(error);
       }
@@ -159,7 +168,7 @@ export function registerPaymentTools(server: McpServer, api: CosmosPayApi, confi
         });
         const data = view(intent);
         const image = input.include_qr ? qrImage(intent.qr) : null;
-        const amount = intent.amount ? `${intent.amount} ${intent.asset}` : `an open amount of ${intent.asset}`;
+        const amount = intent.amount ? `${intent.amount} ${assetName(intent)}` : `an open amount of ${assetName(intent)}`;
         return ok(
           `Created payment ${intent.id} for ${amount} on ${intent.chain} (${intent.network}). Checkout: ${data.checkoutUrl}`,
           data,
@@ -185,8 +194,23 @@ export function registerPaymentTools(server: McpServer, api: CosmosPayApi, confi
     },
     async ({ id: paymentId, tx_hash }) => {
       try {
-        const result = await api.request<Record<string, unknown>>('POST', `${path(paymentId)}/validate`, { body: { txHash: tx_hash } });
-        return ok(`Validated transaction against payment ${paymentId}.`, { id: paymentId, result });
+        const result = await api.request<ValidateResult>('POST', `${path(paymentId)}/validate`, { body: { txHash: tx_hash } });
+        // The API answers a payment that is already SUCCEEDED as it is, without looking the hash up,
+        // so a different hash there is not proof of anything: say which transaction paid it.
+        const paidBy = result.paymentIntent?.txHash;
+        const otherTx = result.status === 'SUCCEEDED' && paidBy && paidBy.toLowerCase() !== tx_hash.toLowerCase();
+        const summary = otherTx
+          ? `Payment ${paymentId} was already paid by transaction ${paidBy}; the API does not check another transaction against a paid payment.`
+          : result.valid
+            ? `The transaction pays payment ${paymentId}: its status is ${result.status}.`
+            : `The transaction does not pay payment ${paymentId}${result.reason ? ` (${result.reason})` : ''}. Its status stays ${result.status}.`;
+        return ok(summary, {
+          id: paymentId,
+          valid: result.valid,
+          status: result.status,
+          reason: result.reason ?? null,
+          payment: result.paymentIntent ? view(result.paymentIntent) : null,
+        });
       } catch (error) {
         return failure(error);
       }
