@@ -4,7 +4,9 @@ name: Release
 # since the last release and resolves the next version (feat: minor, fix: patch, `!` or
 # BREAKING CHANGE: major). With nothing release-worthy (only chore, docs or ci) the job skips.
 # Otherwise it tests, builds, publishes to npm with provenance, commits the bump and changelog,
-# tags and creates a GitHub Release. Needs the NPM_TOKEN secret (environment `release`).
+# tags and creates a GitHub Release. Needs the NPM_TOKEN secret (environment `release`): without
+# it the run changes nothing (no bump, tag or publish) and says so; add the secret, then run this
+# workflow by hand (Actions > Release > Run workflow) on main.
 on:
   push:
     branches: [main]
@@ -33,7 +35,22 @@ jobs:
           fetch-tags: true
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      # The bump is committed to main before `npm publish`, so a run without a token would leave a
+      # version that was never published. Check first and stop cleanly instead.
+      - name: Check the npm token
+        id: token
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -n "$NPM_TOKEN" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "NPM_TOKEN is not set in the \`release\` environment, so nothing was versioned, tagged or published. Add it, then run this workflow on main (Actions > Release > Run workflow)." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
       - name: Setup Node
+        if: steps.token.outputs.ready == 'true'
         uses: actions/setup-node@v6
         with:
           node-version: 22.x
@@ -41,14 +58,16 @@ jobs:
           cache: npm
 
       - name: Install dependencies
+        if: steps.token.outputs.ready == 'true'
         run: npm ci
 
       - name: Resolve next version
+        if: steps.token.outputs.ready == 'true'
         id: ver
         run: node scripts/release-version.mjs
 
       - name: No release needed
-        if: steps.ver.outputs.release != 'true'
+        if: steps.token.outputs.ready == 'true' && steps.ver.outputs.release != 'true'
         run: echo "No release-worthy commits since v${{ steps.ver.outputs.previous }}; skipping." >> "$GITHUB_STEP_SUMMARY"
 
       - name: Typecheck, test and build
