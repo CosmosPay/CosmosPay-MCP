@@ -1,3 +1,7 @@
+<p align="center">
+  <a href="https://dev.cosmospay.lat/docs/ai/"><img src=".github/assets/banner.png" width="100%" alt="Cosmos Pay MCP server: AI agents create payment links and check payments with your API key."></a>
+</p>
+
 # Cosmos Pay MCP server
 
 An [MCP](https://modelcontextprotocol.io) server for the [Cosmos Pay](https://cosmospay.lat) Payments API. It lets an AI agent (Claude Code, Claude Desktop, Cursor, VS Code, Windsurf and any other MCP client) create stablecoin payment links and check payments on **Stellar, Solana and Monad** with your API key.
