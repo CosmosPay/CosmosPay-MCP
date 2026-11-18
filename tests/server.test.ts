@@ -155,6 +155,14 @@ describe('reading payments', () => {
     expect((read.content as Text[])[0]?.text).toMatch(/^Payment pi_123 \(open amount of SOL\) is PENDING on solana/);
   });
 
+  it('creates an Arc link, whose coin is USDC', async () => {
+    const { fn, calls } = fakeFetch([[201, { ...INTENT, chain: 'arc', asset: 'native', assetIssuer: null, amount: '10' }]]);
+    const client = await connect(config(), fn);
+    const created = await client.callTool({ name: 'create_payment_link', arguments: { destination: '0xabc', amount: '10', chain: 'arc' } });
+    expect(calls[0]?.body).toEqual({ chain: 'arc', destination: '0xabc', amount: '10' });
+    expect((created.content as Text[])[0]?.text).toMatch(/^Created payment pi_123 for 10 USDC on arc/);
+  });
+
   it('list_stellar_assets defaults to the key’s network', async () => {
     const { fn, calls } = fakeFetch([
       [200, { assets: [] }],

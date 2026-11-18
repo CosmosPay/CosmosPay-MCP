@@ -7,7 +7,7 @@ import type { CosmosPayApi } from '@/api';
 import type { Config } from '@/config';
 import { assetName, failure, networkLabel, ok, paymentView, qrImage, type PaymentIntent } from '@/results';
 
-const CHAINS = ['stellar', 'solana', 'monad'] as const;
+const CHAINS = ['stellar', 'solana', 'monad', 'arc'] as const;
 const STATUSES = ['PENDING', 'SUBMITTED', 'SUCCEEDED', 'FAILED', 'CANCELLED', 'EXPIRED'] as const;
 const THEMES = ['classic', 'split', 'ticket', 'card'] as const;
 
@@ -116,10 +116,10 @@ export function registerPaymentTools(server: McpServer, api: CosmosPayApi, confi
     {
       title: 'Create a payment link',
       description: [
-        'Create a payment request that a customer pays from their own wallet: a payment link (SEP-7 on Stellar, Solana Pay on Solana, EIP-681 on Monad), its QR code and a hosted checkout page.',
+        'Create a payment request that a customer pays from their own wallet: a payment link (SEP-7 on Stellar, Solana Pay on Solana, EIP-681 on Monad and Arc), its QR code and a hosted checkout page.',
         'It moves no money: the payment settles on-chain straight to `destination` once the customer pays.',
         `The network is the API key’s: this server is on ${networkLabel(config.network)}.`,
-        'Omit `amount` to let the payer choose it (not on Monad, which needs one). Omit `asset_code` to charge in the chain’s coin (XLM, SOL, MON).',
+        'Omit `amount` to let the payer choose it (not on Monad or Arc, which need one). Omit `asset_code` to charge in the chain’s coin (XLM, SOL, MON; on Arc, USDC).',
         'Send the customer `checkoutUrl` (or `paymentUri` for a wallet), then use get_payment to see when it is paid.',
       ].join(' '),
       inputSchema: {
@@ -127,7 +127,7 @@ export function registerPaymentTools(server: McpServer, api: CosmosPayApi, confi
           .string()
           .trim()
           .min(1)
-          .describe('The account that receives the payment, on the chosen chain: Stellar G..., Solana base58 address, Monad 0x... address.'),
+          .describe('The account that receives the payment, on the chosen chain: Stellar G..., Solana base58 address, Monad or Arc 0x... address.'),
         chain: z.enum(CHAINS).optional().describe('The chain the payment settles on. Default: stellar.'),
         amount: z
           .string()
@@ -140,7 +140,7 @@ export function registerPaymentTools(server: McpServer, api: CosmosPayApi, confi
           .trim()
           .min(1)
           .optional()
-          .describe('Who issues the asset: the Stellar issuer account, the Solana SPL mint or the Monad ERC-20 contract. Needed for a token unless the API has a preset for it.'),
+          .describe('Who issues the asset: the Stellar issuer account, the Solana SPL mint or the Monad or Arc ERC-20 contract. Needed for a token unless the API has a preset for it.'),
         memo: z
           .string()
           .regex(/^\d{1,20}$/, 'digits only (a uint64)')
@@ -188,7 +188,7 @@ export function registerPaymentTools(server: McpServer, api: CosmosPayApi, confi
         'Check a transaction against a payment and settle it if it pays it. Use it when the payer sent the payment but its status has not changed: pass the transaction hash (or Solana signature) the payer has.',
       inputSchema: {
         id,
-        tx_hash: z.string().trim().min(1).max(200).describe('The transaction to check, in its chain’s form: a Stellar hash, a Solana signature or a Monad 0x hash.'),
+        tx_hash: z.string().trim().min(1).max(200).describe('The transaction to check, in its chain’s form: a Stellar hash, a Solana signature or a Monad or Arc 0x hash.'),
       },
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     },
