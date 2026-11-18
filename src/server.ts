@@ -8,7 +8,7 @@ import { registerPaymentTools } from '@/tools/payments';
 
 export function instructions(config: Config): string {
   return [
-    'Cosmos Pay is a non-custodial stablecoin payment gateway on Stellar, Solana and Monad (cosmospay.lat; not the Cosmos Network, ATOM).',
+    'Cosmos Pay is a non-custodial stablecoin payment gateway (cosmospay.lat; not the Cosmos Network, ATOM). This server creates payment links on Stellar, Solana, Monad and Arc.',
     `This server uses one organization's API key, on ${networkLabel(config.network)}.`,
     'A payment is a request the customer pays from their own wallet: create_payment_link returns a link, a QR and a hosted checkout URL, and the money settles on-chain straight to the destination address. Nothing here signs or moves funds.',
     config.readOnly ? 'Read-only mode: only the tools that read are available.' : 'delete_payment cannot be undone: confirm with the user before calling it.',
