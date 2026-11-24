@@ -1,7 +1,7 @@
 {
   "name": "@cosmosapp/pay_mcp",
   "version": "0.1.0",
-  "description": "MCP server for the Cosmos Pay Payments API: AI agents create stablecoin payment links and check payments on Stellar, Solana and Monad with your API key.",
+  "description": "MCP server for the Cosmos Pay Payments API: AI agents create stablecoin payment links and check payments with your API key.",
   "license": "Apache-2.0",
   "author": "Cosmos Pay <organization@cosmospay.lat>",
   "homepage": "https://dev.cosmospay.lat/docs/ai/",
