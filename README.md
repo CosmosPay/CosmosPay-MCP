@@ -8,7 +8,7 @@ Cosmos Pay is non-custodial: a payment link is a request the customer pays from 
 
 | Tool | What it does | Kind |
 |---|---|---|
-| `create_payment_link` | Create a payment request: a link (SEP-7 on Stellar, Solana Pay on Solana, EIP-681 on Monad), its QR code and a hosted checkout page | creates, moves no money |
+| `create_payment_link` | Create a payment request: a link (EIP-681 on Arc and Monad, Solana Pay on Solana, SEP-7 on Stellar), its QR code and a hosted checkout page | creates, moves no money |
 | `get_payment` | One payment: status, amount, asset, chain, link, checkout URL and, once paid, the transaction hash | read |
 | `get_payment_history` | A payment's status changes | read |
 | `list_payments` | Payments, newest first, filtered by status, chain or date, paged | read |
