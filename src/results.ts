@@ -11,7 +11,7 @@ export interface PaymentIntent {
   id: string;
   kind: 'TX' | 'PAY';
   status: 'PENDING' | 'SUBMITTED' | 'SUCCEEDED' | 'FAILED' | 'CANCELLED' | 'EXPIRED';
-  chain: 'stellar' | 'solana' | 'monad';
+  chain: 'stellar' | 'solana' | 'monad' | 'arc';
   network: string;
   destination: string;
   amount: string | null;
@@ -54,7 +54,8 @@ export function paymentView(intent: PaymentIntent, checkoutUrl: string) {
   };
 }
 
-const COINS: Record<PaymentIntent['chain'], string> = { stellar: 'XLM', solana: 'SOL', monad: 'MON' };
+/* Arc's own coin is USDC (it pays gas); the API names it `USDC` there, so `native` is only a fallback. */
+const COINS: Record<PaymentIntent['chain'], string> = { stellar: 'XLM', solana: 'SOL', monad: 'MON', arc: 'USDC' };
 
 /** The asset as a person reads it: the API names a chain's own coin `native`. */
 export function assetName(intent: Pick<PaymentIntent, 'asset' | 'chain'>): string {
